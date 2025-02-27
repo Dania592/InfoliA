@@ -3,8 +3,6 @@ import { ref, onMounted } from 'vue'
 import {RouterView, RouterLink} from 'vue-router'
 import NavBar from './components/NavBar.vue'
 
-
-
 const message = ref('')
 
 onMounted(async () => {
@@ -19,8 +17,18 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="container">
+  <div>
     <NavBar />
+    <div class="container main-content">
+      <RouterView />
+    </div>
   </div>
-  <RouterView />
 </template>
+
+<style>
+/* Ajout d'un peu d'espace pour la navbar fixe */
+.main-content {
+  margin-top: 4rem;
+  padding: 1.5rem;
+}
+</style>
