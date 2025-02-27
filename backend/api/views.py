@@ -24,4 +24,4 @@ def login(request):
             "pseudo": user.pseudo,
             "is_admin": user.is_admin
         }, status=status.HTTP_200_OK)
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    return Response({"detail": "Identifiants invalides"}, status=status.HTTP_400_BAD_REQUEST)

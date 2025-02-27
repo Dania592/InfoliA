@@ -1,6 +1,7 @@
 <script setup>
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { login as loginAction } from '../stores/auth'
 
 const pseudo = ref('')
 const password = ref('')
@@ -27,16 +28,18 @@ const login = async () => {
             throw new Error(data.detail || "Échec de la connexion")
         }
 
-        // Stocker les informations de connexion
-        localStorage.setItem('token', data.token)
-        localStorage.setItem('pseudo', data.pseudo)
-        localStorage.setItem('is_admin', data.is_admin)
+        // Utiliser la fonction login du store pour mettre à jour l'état global
+        loginAction({
+            pseudo: data.pseudo,
+            is_admin: data.is_admin
+        })
 
         successMessage.value = "Connexion reussie !"
         pseudo.value = ''
         password.value = ''
-        // Redirection vers la page d'accueil
-        router.push('/')
+        
+        // Redirection vers la page de chat
+        router.push('/chat')
     } catch (error) {
         errorMessage.value = error.message
     }
