@@ -1,20 +1,24 @@
 <script setup>
 import { ref } from 'vue'
-import authState from '../stores/auth'
+import authState, {login as loginAction} from '../stores/auth'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
 const messages = ref([])
 const newMessage = ref('')
+const errorMessage = ref('')
+const successMessage = ref('')
 
 // Rediriger vers la page de connexion si l'utilisateur n'est pas connecté
 if (!authState.isAuthenticated) {
   router.push('/login')
 }
 
-const sendMessage = () => {
+const sendMessage = async () => {
+  errorMessage.value = ''
+  successMessage.value = ''
   if (newMessage.value.trim() === '') return
-  
+
   // Ajouter le message de l'utilisateur
   messages.value.push({
     id: Date.now(),
@@ -22,23 +26,53 @@ const sendMessage = () => {
     sender: 'user',
     timestamp: new Date().toLocaleTimeString()
   })
-  
-  // Réinitialiser le champ de saisie
-  const userMessage = newMessage.value
-  newMessage.value = ''
-  
-  // Simuler une réponse du chatbot (message générique)
-  setTimeout(() => {
-    messages.value.push({
-      id: Date.now() + 1,
-      text: `Vous avez dit: "${userMessage}". Je suis un chatbot basique et je ne peux pas encore générer de réponses intelligentes.`,
-      sender: 'bot',
-      timestamp: new Date().toLocaleTimeString()
+
+
+  try {
+    const response = await fetch('/chat/send_message/', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        chat_name: "vectorstore.db", // TODO : remplacer par le nom du chat
+        question: newMessage.value,
+        pseudo : "dania" // TODO : nom utilisateur actuel
+      })
     })
-    
-    // Faire défiler vers le bas pour voir le nouveau message
+    // Réinitialiser le champ de saisie
+    const userMessage = newMessage.value
+    newMessage.value = ''
+    const data = await response.json()
+
+    messages.value.push({
+        id: Date.now() + 1,
+        text: data.response,
+        sender: 'bot',
+        timestamp: new Date().toLocaleTimeString()
+      })
     scrollToBottom()
-  }, 1000)
+
+    if (!response.ok) {
+      throw new Error(data.detail || "Échec de la connexion")
+    }
+
+    successMessage.value = "Connexion reussie !"
+  } catch (error) {
+    errorMessage.value = error.message
+  }
+}
+
+// TODO à adapter avec la création d'un chat
+const createChat = async () => {
+  const response = await fetch('/chat/create_chat/', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      chat_name: "vectorstore", // TODO Nom du chat
+      pseudo: "dania", // TODO : nom utilisateur actuel
+      pdf_name : "document.pdf" // TODO à voir comment charger ou modifier
+    })
+  })
+  const data = await response.json()
 }
 
 const scrollToBottom = () => {
@@ -55,6 +89,13 @@ const scrollToBottom = () => {
   <div class="chat-container">
     <div class="chat-header">
       <h1 class="title">Chat avec InfoliA</h1>
+
+        <button class="button is-info save-button" @click="createChat">
+          <span class="icon">
+            <i class="fas fa-save"></i>
+          </span>
+          <span>Sauvegarder</span>
+        </button>
     </div>
     
     <div class="chat-messages">

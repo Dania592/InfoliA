@@ -1,3 +1,5 @@
+import os
+
 from transformers import pipeline
 
 from core.model.rag_module import RagModule
@@ -24,6 +26,9 @@ class LlmModule:
         return prompt
 
     def generate_response(self, question, faiss_path):
+        if not os.path.exists(faiss_path):
+            return "Base FAISS NotFound : " + faiss_path
+
         results = self.rag.search_faiss(question, faiss_path)
         context = ""
         for result in results:

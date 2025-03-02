@@ -3,7 +3,7 @@ import os
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import PyPDFLoader
-from langchain.vectorstores import FAISS
+from langchain_community.vectorstores import FAISS
 
 class RagModule:
     def __init__(self):
@@ -22,6 +22,8 @@ class RagModule:
         )
 
     def load_pdf_text(self, path_to_pdf):
+        if not os.path.exists(path_to_pdf):
+            raise FileNotFoundError
         loader = PyPDFLoader(path_to_pdf)
         documents = loader.load()
         return documents

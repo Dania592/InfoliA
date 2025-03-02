@@ -17,14 +17,14 @@ function sendMessage(event) {
       setTimeout(() => {
         const llmResponse = document.createElement('div');
         llmResponse.className = 'message llm';
-        llmResponse.textContent = "(Réponse simulée de l'LLM)";
+        llmResponse.textContent = "reponse ici";
         chatHistory.appendChild(llmResponse);
         chatHistory.scrollTop = chatHistory.scrollHeight;
       }, 500);
     }
 
     function createNewDiscussion() {
-      const discussionName = prompt("Nom de la nouvelle discussion :");
+      const discussionName = prompt("Nom CHAT :");
       if (discussionName) {
         const discussionList = document.getElementById('discussionList');
         const newDiscussion = document.createElement('div');
@@ -37,10 +37,25 @@ function sendMessage(event) {
     }
 
     function selectDiscussion(name) {
+        console.log("iciiii")
       document.getElementById('chatTitle').textContent = name;
       document.getElementById('chatHistory').innerHTML = '';
       const welcomeMessage = document.createElement('div');
       welcomeMessage.className = 'message llm';
-      welcomeMessage.textContent = `Bienvenue dans ${name} ! Posez votre question.`;
+      welcomeMessage.textContent = `Bienve.`;
       document.getElementById('chatHistory').appendChild(welcomeMessage);
+
+      fetch('/api/init_rag/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ chat_name: name })
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log("RAG instance initialized:", data);
+        })
+        .catch(error => console.error('Error initializing RAG:', error));
+
     }
