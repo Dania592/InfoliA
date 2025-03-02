@@ -1,12 +1,20 @@
 from django.db import models
 from api.models import User  # Importer le modèle User depuis l'application api
 
+def get_vectordb_upload_path(instance, filename):
+    """
+    Génère dynamiquement le chemin de stockage des fichiers
+    media/user_<id>/chat_<id>/filename
+    TODO : adapter selon l'enregistrement de Ilyes
+    """
+    return f"user_{instance.id_chat.id_user.pseudo}/chat_{instance.id_chat.id_chat}/{filename}"
 
 class Chat(models.Model):
     nom_chat = models.CharField(max_length=50)
-    id_chat = models.AutoField(primary_key=True)
+    id_chat = models.CharField(primary_key=True, max_length=100)
     id_user = models.ForeignKey(User, on_delete=models.CASCADE)  # Référence directe au modèle importé
-    id_vector = models.ForeignKey('Vectordb', on_delete=models.CASCADE)
+    index_faiss = models.FileField(upload_to=get_vectordb_upload_path)
+    index_pkl = models.FileField(upload_to=get_vectordb_upload_path)
 
     def __str__(self):
         return self.nom_chat  # Utiliser nom_chat au lieu de pseudo
@@ -22,13 +30,4 @@ class Message(models.Model):
     source = models.CharField(max_length=50)
 
     def __str__(self):
-        return f"{self.question[:30]}..."  # Ajouter une méthode __str__ pour Message
-
-
-class Vectordb(models.Model):
-    id_vector = models.AutoField(primary_key=True)
-    index_faiss = models.FileField()  # Todo : voir ou stocker les vecteurs
-    index_pkl = models.FileField()  # Todo : voir ou stocker les indexes
-
-    def __str__(self):
-        return f"Vector {self.id_vector}"  # Ajouter une méthode __str__ appropriée
+        return f"{self.id_chat}:{self.id_message}"  # Ajouter une méthode __str__ pour Message

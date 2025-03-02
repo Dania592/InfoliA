@@ -33,7 +33,7 @@ const sendMessage = async () => {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({
-        chat_name: "vectorstore.db", // TODO : remplacer par le nom du chat
+        chat_name: "vectorstore", // TODO : remplacer par le nom du chat
         question: newMessage.value,
         pseudo : "dania" // TODO : nom utilisateur actuel
       })
@@ -63,16 +63,22 @@ const sendMessage = async () => {
 
 // TODO à adapter avec la création d'un chat
 const createChat = async () => {
-  const response = await fetch('/chat/create_chat/', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({
-      chat_name: "vectorstore", // TODO Nom du chat
-      pseudo: "dania", // TODO : nom utilisateur actuel
-      pdf_name : "document.pdf" // TODO à voir comment charger ou modifier
+  console.log("test sauvegarde de la base faiss")
+  try {
+      const response = await fetch('/chat/create_chat/', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        chat_name: "base", // TODO Nom du chat
+        pseudo: "dania", // TODO : nom utilisateur actuel
+        pdf_name : "document.pdf" // TODO à voir comment charger ou modifier
+      })
     })
-  })
-  const data = await response.json()
+    const data = await response.json()
+    console.log(data)
+  }catch (error) {
+    errorMessage.value = error.message
+  }
 }
 
 const scrollToBottom = () => {
@@ -82,6 +88,24 @@ const scrollToBottom = () => {
       chatContainer.scrollTop = chatContainer.scrollHeight
     }
   }, 50)
+}
+
+const loadChat = async () => {
+  console.log("test chargement de la base")
+  try {
+      const response = await fetch('/chat/load_chat/', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        chat_name: "faiss", // TODO Nom du chat
+        pseudo: "dania", // TODO : nom utilisateur actuel
+      })
+    })
+    const data = await response.json()
+    console.log(data)
+  }catch (error) {
+    errorMessage.value = error.message
+  }
 }
 </script>
 
@@ -96,6 +120,12 @@ const scrollToBottom = () => {
           </span>
           <span>Sauvegarder</span>
         </button>
+      <button class="button is-info load-button" @click="loadChat">
+        <span class="icon">
+          <i class="fas fa-folder-open"></i>
+        </span>
+        <span>Charger</span>
+      </button>
     </div>
     
     <div class="chat-messages">

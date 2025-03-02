@@ -1,11 +1,17 @@
 from rest_framework import serializers
-from .models import Chat, Message, Vectordb
+from .models import Chat, Message
 
-class VectordbSerializer(serializers.ModelSerializer):
+class ChatSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Vectordb
-        fields = ['id_vector', 'index_faiss', 'index_pkl']
+        model = Chat
+        fields = ['id_chat', 'nom_chat', 'id_user', 'index_faiss', 'index_pkl']
+    def create(self, validated_data):
+        return Chat.objects.create(**validated_data)
+
+class MessageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Message
+        fields = ['id_message', 'id_chat', 'question', 'reponse', 'date', 'source']
 
     def create(self, validated_data):
-        return Vectordb.objects.create(**validated_data)
-
+        return Message.objects.create(**validated_data)
