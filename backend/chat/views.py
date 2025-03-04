@@ -12,10 +12,23 @@ from django.conf import settings
 import os
 import logging
 import json
-
+from rest_framework.views import APIView
+from rest_framework.parsers import MultiPartParser, FormParser
+from .serializers import UploadedFileSerializer
 rag = RagModule()
 llm = LlmModule()
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+
+class FileUploadView(APIView):
+    parser_classes = (MultiPartParser, FormParser)
+
+    def post(self, request, *args, **kwargs):
+        print(request.data)
+        file_serializer = UploadedFileSerializer(data=request.data)
+        if file_serializer.is_valid():
+            file_serializer.save()
+            return Response({"message": "Fichier uploadé avec succès", "data": file_serializer.data}, status=201)
+        return Response(file_serializer.errors, status=400)
 
 def chat(request):
     return render(request, 'chat.html')
@@ -45,6 +58,7 @@ def send_message(request):
     return Response("serializer.errors", status=status.HTTP_400_BAD_REQUEST)
 
 def get_chat_directory(user_id, chat_name):
+    print("==============> path",os.path.join(settings.MEDIA_ROOT, f"user_{user_id}", f"chat_{chat_name}"))
     return os.path.join(settings.MEDIA_ROOT, f"user_{user_id}", f"chat_{chat_name}")
 
 @api_view(['POST'])
@@ -53,6 +67,7 @@ def create_chat(request):
         data = json.loads(request.body)
         chat_name = data.get('chat_name')
         user_name = data.get('pseudo')
+        pdf_file = data.get('pdf_file')
 
         ## Récupérer le fichier PDF dans le dossier du chat
         chat_directory = get_chat_directory(user_name, chat_name)
@@ -60,8 +75,11 @@ def create_chat(request):
 
         # Vérifier que l'utilisateur existe
         user = get_object_or_404(User, pseudo=user_name)
+        # Créer le répertoire utilisateur s'il n'existe pas
+        user_directory = os.path.join(settings.MEDIA_ROOT, f"user_{user_name}")
+        os.makedirs(user_directory, exist_ok=True)
+        logging.info(f"Répertoire utilisateur créé: {user_directory}")
 
-        # TODO : Créer le Chat => remplacer par le serializer
         id_chat = f"user_{user.pseudo}.chat_{chat_name}"
         os.makedirs(chat_directory, exist_ok=True)
         pdf_path = os.path.join(chat_directory, data.get('pdf_name'))
@@ -72,7 +90,6 @@ def create_chat(request):
         ## Création de la base FAISS
         rag.create_faiss_db([pdf_path], chat_directory)
 
-        # ==> remplacer par le serializer
         chat = Chat.objects.create(
             id_chat=id_chat,
             nom_chat=chat_name,
@@ -90,6 +107,7 @@ def create_chat(request):
     except Exception as e:
         return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
+
 @api_view(['POST'])
 def load_chat(request):
     try:
@@ -98,9 +116,15 @@ def load_chat(request):
         user_name = data.get('pseudo')
 
         user = get_object_or_404(User, pseudo=user_name)
-        ## Récuperation du chat ? id ?
-        chat = get_object_or_404(Chat, pseudo=chat_name)
+        id_chat = f"user_{user.pseudo}.chat_{chat_name}"
+        chat = get_object_or_404(Chat, id_chat=id_chat)
 
+
+        chat_download_dir = get_chat_directory(user.pseudo, chat_name)
+        print(chat_download_dir)
+        os.makedirs(chat_download_dir, exist_ok=True)
+
+        file_paths = {}
 
     except Exception as e:
         return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)

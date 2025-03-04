@@ -31,3 +31,14 @@ class Message(models.Model):
 
     def __str__(self):
         return f"{self.id_chat}:{self.id_message}"  # Ajouter une méthode __str__ pour Message
+
+from django.db import models
+
+def get_file_upload_path(instance,filename):
+    return f"user_{instance.user_name}/chat_{instance.chat_name}/{filename}"
+
+class UploadedFile(models.Model):
+    chat_name = models.CharField(max_length=100, null=True, blank=True)
+    user_name = models.CharField(max_length=100, null=True, blank=True)
+    file = models.FileField(upload_to=get_file_upload_path)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
