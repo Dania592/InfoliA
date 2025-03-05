@@ -160,11 +160,28 @@ export default {
       showUploadModal: false,
       showNewConversationModal: false,
       chatViewMode: false,
-      chatStore: useChatStore()
+      chatStore: useChatStore(),
+      routeWatcher: null
     }
   },
   mounted() {
     this.fetchChats()
+    
+    // Surveiller les changements de route
+    this.routeWatcher = this.$router.afterEach((to) => {
+      if (to.path !== '/chat') {
+        this.showChatList()
+        this.selectedChatId = null
+        this.selectedChat = null
+        this.chatViewMode = false
+      }
+    })
+  },
+  unmounted() {
+    // Nettoyer le watcher de route lors de la destruction du composant
+    if (this.routeWatcher) {
+      this.routeWatcher()
+    }
   },
   methods: {
     async fetchChats() {

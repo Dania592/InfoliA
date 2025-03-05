@@ -80,7 +80,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useChatStore } from '../stores/chatStore'
 import { useRouter } from 'vue-router'
 
@@ -148,6 +148,14 @@ const deleteConversation = () => {
   deleteModalActive.value = false
   conversationToDelete.value = null
 }
+
+// Surveiller les changements de route
+watch(() => router.currentRoute.value.path, (path) => {
+  if (path !== '/chat') {
+    // Si nous ne sommes plus sur la route /chat, réinitialiser la sélection
+    chatStore.resetSelectedChat()
+  }
+})
 </script>
 
 <style scoped>

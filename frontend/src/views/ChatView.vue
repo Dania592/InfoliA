@@ -25,6 +25,18 @@ onMounted(() => {
   }
 })
 
+// Fermer le chat quand on quitte la page
+onBeforeUnmount(() => {
+  chatStore.resetSelectedChat()
+})
+
+// Surveiller les changements de route
+watch(() => router.currentRoute.value.path, (path) => {
+  if (path !== '/chat') {
+    chatStore.resetSelectedChat()
+  }
+})
+
 // Gérer la sélection d'une conversation depuis la liste
 const selectConversation = (conversationId) => {
   chatStore.selectChat(conversationId)

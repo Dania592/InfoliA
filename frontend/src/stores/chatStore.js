@@ -154,6 +154,11 @@ export const useChatStore = defineStore('chat', () => {
     messages.value = {}
   }
   
+  // Réinitialiser uniquement le chat sélectionné
+  function resetSelectedChat() {
+    selectedChatId.value = null
+  }
+  
   return {
     // État
     conversations,
@@ -175,6 +180,7 @@ export const useChatStore = defineStore('chat', () => {
     setMessages,
     loadFromLocalStorage,
     loadChatMessages,
-    resetState
+    resetState,
+    resetSelectedChat
   }
 })
