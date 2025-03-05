@@ -332,7 +332,7 @@ export default {
 
 .chat-list-container {
   width: 300px;
-  border-right: 1px solid #80e7c9;
+  border-right: 1px solid #163b31;
   padding: 1rem;
   overflow-y: auto;
   transition: width 0.3s ease, opacity 0.3s ease;
@@ -356,7 +356,7 @@ export default {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 1rem;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid #11cfb3;
   padding-bottom: 1rem;
 }
 

@@ -164,6 +164,8 @@ watch(() => router.currentRoute.value.path, (path) => {
   height: 100%;
   display: flex;
   flex-direction: column;
+  background-color: #181818;
+  color: #fff;
 }
 
 .no-conversations {
@@ -173,7 +175,7 @@ watch(() => router.currentRoute.value.path, (path) => {
   justify-content: center;
   height: 100%;
   text-align: center;
-  color: #888;
+  color: #aaa;
 }
 
 .conversations {
@@ -188,16 +190,17 @@ watch(() => router.currentRoute.value.path, (path) => {
   padding: 0.75rem;
   border-radius: 4px;
   margin-bottom: 0.5rem;
-  border: 1px solid transparent;
+  border: 1px solid #181818;
   transition: all 0.2s ease;
 }
 
 .conversation-item:hover {
-  border-color: #e0e0e0;
+  border-color: #11cfb3;
 }
 
 .conversation-item.is-active {
-  border-color: #add8e6;
+  border-color: #11cfb3;
+  background-color: rgba(17, 207, 179, 0.1);
 }
 
 .conversation-item-content {
@@ -215,30 +218,31 @@ watch(() => router.currentRoute.value.path, (path) => {
 .conversation-name {
   font-weight: 600;
   margin-bottom: 0.25rem;
+  color: #fff;
 }
 
 .conversation-date {
   font-size: 0.75rem;
-  color: #888;
+  color: #aaa;
 }
 
 .conversation-document {
   display: flex;
   align-items: center;
   font-size: 0.8rem;
-  color: #666;
+  color: #ccc;
   margin-top: 0.25rem;
 }
 
 .conversation-document .icon {
   margin-right: 0.25rem;
-  color: #3273dc;
+  color: #11cfb3;
 }
 
 .delete-button {
   background: transparent;
   border: none;
-  color: #888;
+  color: #aaa;
   cursor: pointer;
   padding: 0.25rem;
   border-radius: 50%;
@@ -248,5 +252,52 @@ watch(() => router.currentRoute.value.path, (path) => {
 .delete-button:hover {
   background-color: #f14668;
   color: white;
+}
+
+.input {
+  background-color: transparent;
+  border-color: #11cfb3;
+  color: inherit;
+}
+
+.input:focus {
+  border-color: #11cfb3;
+  box-shadow: 0 0 0 0.125em rgba(17, 207, 179, 0.25);
+}
+
+.input::placeholder {
+  color: #888;
+}
+
+.button.is-primary {
+  background-color: #11cfb3;
+  border-color: transparent;
+}
+
+.button.is-primary:hover {
+  background-color: #0fb9a0;
+}
+
+.modal-card-head,
+.modal-card-body,
+.modal-card-foot {
+  background-color: #232323;
+  color: #fff;
+  border-color: #333;
+}
+
+.modal-card-title {
+  color: #fff;
+}
+
+.button:not(.is-primary):not(.is-danger) {
+  background-color: #333;
+  color: #fff;
+  border-color: #444;
+}
+
+.button:not(.is-primary):not(.is-danger):hover {
+  background-color: #444;
+  color: #fff;
 }
 </style>

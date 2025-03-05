@@ -282,6 +282,7 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   height: 100%;
+
 }
 
 .chat-header {
@@ -290,7 +291,7 @@ onBeforeUnmount(() => {
   align-items: center;
   padding: 1rem;
   border-bottom: 1px solid #f5f5f5;
-  background-color: #fff;
+
 }
 
 .chat-info {
@@ -319,7 +320,7 @@ onBeforeUnmount(() => {
   flex: 1;
   overflow-y: auto;
   padding: 1rem;
-  background-color: #f9f9f9;
+
 }
 
 .loading-messages, .no-messages {
@@ -360,14 +361,15 @@ onBeforeUnmount(() => {
 
 .message-user {
   align-self: flex-end;
-  background-color: #e3f2fd;
-  border: 1px solid #bbdefb;
+  background-color: #181818;
+  border: 1px solid #11cfb3;
 }
 
 .message-assistant {
   align-self: flex-start;
-  background-color: white;
-  border: 1px solid #e0e0e0;
+  background-color: #11cfb3;
+  border: 1px solid #EEC584 ;
+  color: #181818;
 }
 
 .message-system {
@@ -429,7 +431,6 @@ onBeforeUnmount(() => {
 .message-input-container {
   padding: 1rem;
   border-top: 1px solid #f5f5f5;
-  background-color: #fff;
 }
 
 .thinking-indicator {
@@ -482,7 +483,7 @@ onBeforeUnmount(() => {
 .message-input {
   flex: 1;
   padding: 0.75rem 3rem 0.75rem 0.75rem;
-  border: 1px solid #dbdbdb;
+  border: 1px solid #11cfb3;
   border-radius: 4px;
   font-size: 1rem;
   resize: none;
@@ -499,7 +500,6 @@ onBeforeUnmount(() => {
 }
 
 .message-input:disabled {
-  background-color: #f5f5f5;
   cursor: not-allowed;
 }
 
@@ -507,7 +507,7 @@ onBeforeUnmount(() => {
   position: absolute;
   right: 0.5rem;
   bottom: 0.5rem;
-  background-color: #3273dc;
+  background-color: #11cfb3;
   color: white;
   border: none;
   border-radius: 50%;

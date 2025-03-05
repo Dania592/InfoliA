@@ -103,7 +103,7 @@ watch(() => authState.isAuthenticated, (isAuthenticated) => {
     </div>
     
     <!-- Sidebar pour la liste des conversations -->
-    <div class="conversation-sidebar" v-if="chatStore.conversations.length > 0 && !chatStore.selectedChatId">
+    <div class="conversation-sidebar" v-if="!chatStore.selectedChatId">
       <ConversationList 
         @select-conversation="selectConversation"
         @new-conversation="openNewConversationModal"
@@ -150,10 +150,10 @@ watch(() => authState.isAuthenticated, (isAuthenticated) => {
 
 .conversation-sidebar {
   width: 300px;
-  border-right: 1px solid #f5f5f5;
+  border-right: 1px solid #10372f;
   height: 100%;
   overflow-y: auto;
-  background-color: #fafafa;
+  border-left: 1px solid #10372f;
 }
 
 .chat-content {
@@ -182,7 +182,7 @@ watch(() => authState.isAuthenticated, (isAuthenticated) => {
     height: auto;
     max-height: 40vh;
     border-right: none;
-    border-bottom: 1px solid #f5f5f5;
+    border-bottom: 1px solid #333;
   }
   
   .chat-content {
