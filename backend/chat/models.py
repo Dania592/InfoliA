@@ -34,8 +34,17 @@ class Message(models.Model):
 
 from django.db import models
 
-def get_file_upload_path(instance,filename):
-    return f"user_{instance.user_name}/chat_{instance.chat_name}/{filename}"
+def get_file_upload_path(instance, filename):
+    """Génère un chemin valide pour l'upload de fichiers"""
+    # Nettoyer le nom du chat pour éviter les caractères problématiques
+    safe_chat_name = "".join(c if c.isalnum() or c in "-_" else "_" for c in instance.chat_name)
+    # Assurer que les répertoires existent
+    import os
+    from django.conf import settings
+    directory = os.path.join(settings.MEDIA_ROOT, f"user_{instance.user_name}", f"chat_{safe_chat_name}")
+    os.makedirs(directory, exist_ok=True)
+    
+    return f"user_{instance.user_name}/chat_{safe_chat_name}/{filename}"
 
 class UploadedFile(models.Model):
     chat_name = models.CharField(max_length=100, null=True, blank=True)

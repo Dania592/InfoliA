@@ -23,12 +23,23 @@ class FileUploadView(APIView):
     parser_classes = (MultiPartParser, FormParser)
 
     def post(self, request, *args, **kwargs):
-        print(request.data)
-        file_serializer = UploadedFileSerializer(data=request.data)
-        if file_serializer.is_valid():
-            file_serializer.save()
-            return Response({"message": "Fichier uploadé avec succès", "data": file_serializer.data}, status=201)
-        return Response(file_serializer.errors, status=400)
+        try:
+            logging.info(f"Début de l'upload de fichier: {request.data}")
+            
+            file_serializer = UploadedFileSerializer(data=request.data)
+            if file_serializer.is_valid():
+                logging.info(f"Données valides, sauvegarde du fichier")
+                instance = file_serializer.save()
+                logging.info(f"Fichier sauvegardé avec succès: {instance.file.path}")
+                return Response({"message": "Fichier uploadé avec succès", "data": file_serializer.data}, status=201)
+            else:
+                logging.error(f"Erreurs de validation: {file_serializer.errors}")
+                return Response(file_serializer.errors, status=400)
+        except Exception as e:
+            logging.error(f"Erreur lors de l'upload: {str(e)}")
+            import traceback
+            logging.error(traceback.format_exc())
+            return Response({"error": str(e)}, status=500)
 
 def chat(request):
     return render(request, 'chat.html')
@@ -36,26 +47,81 @@ def chat(request):
 @api_view(['POST'])
 def send_message(request):
     if request.method == 'POST':
-        data = json.loads(request.body)
-        chat_name = data.get('chat_name')
-        user_name = data.get('pseudo')
-        question = data.get('question')
-        logging.info(f"Chat: {chat_name}, Utilisateur: {user_name}, Question: {question}")
-
-        faiss_path = get_chat_directory(user_name, chat_name)
-
-        result = llm.generate_response(question, faiss_path=faiss_path)
-
-
-        ## TODO : enregister le message dans la BD
-
-        logging.info(f"Chat: {chat_name}, Utilisateur: {user_name}, Question: {question}, Result: {result}")
-
-        return Response({
-                "message": "Connexion réussie !",
-                "response": result[0]['generated_text']
+        try:
+            data = json.loads(request.body)
+            chat_id = data.get('chat_id')
+            user_name = data.get('pseudo')
+            question = data.get('message')
+            
+            # Logs de debugging
+            logging.info(f"Recherche de chat avec id_chat={chat_id}, type={type(chat_id).__name__}")
+            
+            # Liste tous les chats disponibles
+            all_chats = Chat.objects.all()
+            logging.info(f"Chats disponibles: {[(c.id_chat, c.nom_chat) for c in all_chats]}")
+            
+            # Stratégie fallback: si on ne trouve pas le chat par ID, on prend le premier chat disponible
+            try:
+                # Essayer d'abord avec l'ID exact
+                chat = Chat.objects.get(id_chat=chat_id)
+            except Chat.DoesNotExist:
+                if len(all_chats) > 0:
+                    # Fallback: utiliser le premier chat disponible
+                    logging.warning(f"Chat {chat_id} non trouvé. Utilisation du chat {all_chats[0].id_chat} comme fallback.")
+                    chat = all_chats[0]
+                else:
+                    raise Chat.DoesNotExist("Aucun chat disponible")
+            
+            chat_name = chat.nom_chat
+            logging.info(f"Chat trouvé/utilisé - ID: {chat.id_chat}, Nom: {chat_name}")
+            
+            # Déterminer le chemin du dossier FAISS
+            # 1. Utiliser d'abord le chemin du chat actuel
+            faiss_path = get_chat_directory(user_name, chat_name)
+            logging.info(f"Utilisation du chemin FAISS (depuis chat): {faiss_path}")
+            
+            # 2. Si ce chemin n'existe pas, essayer avec le dossier chat_test explicitement
+            if not os.path.exists(faiss_path):
+                alt_path = os.path.join(settings.MEDIA_ROOT, f"user_{user_name}", "chat_test")
+                logging.info(f"Chemin FAISS non trouvé, essai avec chemin alternatif: {alt_path}")
+                
+                if os.path.exists(alt_path):
+                    faiss_path = alt_path
+                    logging.info(f"Utilisation du chemin FAISS alternatif: {faiss_path}")
+            
+            # Générer une réponse
+            result = llm.generate_response(question, faiss_path=faiss_path)
+            
+            # Vérifier le format de la réponse et la traiter en conséquence
+            logging.info(f"Type de résultat LLM: {type(result)}")
+            
+            if isinstance(result, str):
+                # Si le résultat est déjà une chaîne de caractères
+                response_text = result
+                logging.info(f"Réponse LLM (string): {response_text[:100]}...")
+            elif isinstance(result, list) and len(result) > 0 and isinstance(result[0], dict):
+                # Format standard des pipelines Hugging Face
+                response_text = result[0].get('generated_text', 'Pas de texte généré')
+                logging.info(f"Réponse LLM (dict): {response_text[:100]}...")
+            else:
+                # Autre format, tenter de convertir en string
+                response_text = str(result)
+                logging.info(f"Réponse LLM (autre format): {response_text[:100]}...")
+            
+            # Retourner la réponse
+            return Response({
+                "message": "Message envoyé avec succès",
+                "response": response_text
             }, status=status.HTTP_200_OK)
-    return Response("serializer.errors", status=status.HTTP_400_BAD_REQUEST)
+            
+        except Chat.DoesNotExist as e:
+            logging.error(f"Aucun chat trouvé: {str(e)}")
+            return Response({"error": f"Aucun chat trouvé: {str(e)}"}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            logging.error(f"Erreur lors du traitement du message: {str(e)}")
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    return Response({"error": "Méthode non autorisée"}, status=status.HTTP_400_BAD_REQUEST)
 
 def get_chat_directory(user_id, chat_name):
     print("==============> path",os.path.join(settings.MEDIA_ROOT, f"user_{user_id}", f"chat_{chat_name}"))

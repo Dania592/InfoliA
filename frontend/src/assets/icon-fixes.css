@@ -1,0 +1,13 @@
+/* Solution de contournement pour les icônes qui ne s'affichent pas correctement */
+
+/* Remplacer l'icône arrow-left par un caractère unicode */
+.fa.fa-chevron-left::before {
+  content: "\2190"; /* Flèche gauche unicode */
+  font-family: sans-serif;
+}
+
+/* Remplacer l'icône times/close par un caractère unicode */
+.fa.fa-close::before {
+  content: "\2715"; /* Croix unicode */
+  font-family: sans-serif;
+}

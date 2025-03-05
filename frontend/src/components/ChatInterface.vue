@@ -1,324 +1,280 @@
 <template>
-  <div class="chat-interface" :class="{ updating: isLoading }">
-    <ConversationHeader :chatId="chatId" />
-    
-    <div class="chat-messages">
-      <div v-if="messages.length === 0" class="empty-chat">
-        <p>Commencez à discuter avec InfoliA sur votre document</p>
-        <button class="button is-primary mt-4" @click="openNewConversation">
+  <div class="chat-interface">
+    <!-- Header avec informations sur la conversation -->
+    <div class="chat-header">
+      <div class="chat-info">
+        <h2 class="chat-title">{{ chatStore.currentChat?.name || 'Chat' }}</h2>
+        <span v-if="chatStore.currentChat?.document" class="chat-document">
+          <i class="fa-solid fa-file-alt mr-1"></i>
+          {{ chatStore.currentChat.document }}
+        </span>
+      </div>
+      <div class="chat-actions">
+        <button 
+          class="button is-primary is-small"
+          @click="$emit('new-conversation')"
+        >
           <span class="icon">
-            <i class="fas fa-plus"></i>
+            ←
           </span>
-          <span>Nouvelle conversation</span>
+          <span>Revenir aux conversations</span>
         </button>
       </div>
+    </div>
+
+    <!-- Zone des messages -->
+    <div class="message-container" ref="messageContainer">
+      <div v-if="chatStore.isLoading" class="loading-messages">
+        <div class="loading-spinner"></div>
+        <p>Chargement des messages...</p>
+      </div>
       
-      <div v-for="message in messages" :key="message.id" 
-           :class="['message', message.sender === 'user' ? 'user-message' : 'bot-message']">
-        <div class="message-content">
-          <p>{{ message.text }}</p>
-          <div v-if="message.source" class="message-source">
-            Source: {{ message.source }}
+      <div v-else-if="!chatStore.currentMessages.length" class="no-messages">
+        <p>Aucun message dans cette conversation. Envoyez le premier message !</p>
+      </div>
+
+      <div v-else class="messages">
+        <div 
+          v-for="(message, index) in chatStore.currentMessages" 
+          :key="index"
+          class="message-item"
+          :class="[
+            'message-' + message.role,
+            { 'is-thinking': message.thinking }
+          ]"
+        >
+          <div class="message-header">
+            <span class="message-sender">{{ getSenderLabel(message.role) }}</span>
+            <span class="message-time">{{ formatDate(message.timestamp) }}</span>
           </div>
+          <div class="message-content" v-html="formatContent(message.content)"></div>
         </div>
-        <div class="message-timestamp">{{ message.timestamp }}</div>
       </div>
     </div>
-    
-    <div class="chat-input">
-      <div class="field has-addons">
-        <div class="control is-expanded">
-          <input 
-            class="input" 
-            type="text" 
-            placeholder="Tapez votre question..." 
-            v-model="newMessage"
-            @keyup.enter="sendMessage"
-            :disabled="!chatId"
-          >
+
+    <!-- Zone de saisie du message -->
+    <div class="message-input-container">
+      <div class="thinking-indicator" v-if="isWaitingForResponse">
+        <div class="thinking-dots">
+          <span></span>
+          <span></span>
+          <span></span>
         </div>
-        <div class="control">
-          <button 
-            class="button is-primary" 
-            @click="sendMessage"
-            :disabled="!chatId || isLoading"
-            :class="{'is-loading': isLoading}"
-          >
-            <span class="icon">
-              <i class="fas fa-paper-plane"></i>
-            </span>
-            <span>Envoyer</span>
-          </button>
-        </div>
+        <span class="thinking-text">Le modèle réfléchit...</span>
+      </div>
+      <div class="input-wrapper">
+        <textarea 
+          class="message-input"
+          placeholder="Posez votre question..."
+          v-model="newMessage"
+          @keydown.enter.exact.prevent="sendMessage"
+          @keydown.ctrl.enter="newMessage += '\n'"
+          :disabled="isWaitingForResponse"
+          ref="messageInput"
+        ></textarea>
+        <button 
+          class="send-button"
+          @click="sendMessage"
+          :disabled="!newMessage.trim() || isWaitingForResponse"
+        >
+          <i class="fa-solid fa-paper-plane"></i>
+        </button>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, watch, onMounted } from 'vue'
-import { defineProps, defineEmits } from 'vue'
-import ConversationHeader from './ConversationHeader.vue'
+import { ref, onMounted, onBeforeUnmount, watch, nextTick, computed } from 'vue'
+import { useChatStore } from '../stores/chatStore'
 import authState from '../stores/auth'
+import { marked } from 'marked'
+import DOMPurify from 'dompurify'
 
-const props = defineProps({
-  chatId: {
-    type: [Number, String],
-    default: null
-  }
-})
+// Store Pinia
+const chatStore = useChatStore()
 
+// Émetteurs d'événements
 const emit = defineEmits(['new-conversation'])
 
-const messages = ref([])
+// État local
 const newMessage = ref('')
-const isLoading = ref(false)
+const isWaitingForResponse = ref(false)
+const messageContainer = ref(null)
+const messageInput = ref(null)
 
-// Surveiller les changements de chatId
-watch(() => props.chatId, (newChatId, oldChatId) => {
-  console.log('ChatInterface: chatId a changé ->', newChatId, '(ancien:', oldChatId, ')')
+// Configuration de marked pour les mêmes fonctionnalités que showdown
+marked.setOptions({
+  breaks: true,
+  gfm: true,
+  tables: true
+})
+
+// Fonction d'envoi de message
+const sendMessage = async () => {
+  if (!newMessage.value.trim() || isWaitingForResponse.value) return
   
-  if (!newChatId) {
-    console.warn('ChatInterface: chatId invalide reçu:', newChatId)
+  // Vérifier si un chat est sélectionné
+  if (!chatStore.selectedChatId) {
+    console.error('Aucune conversation sélectionnée pour envoyer le message')
     return
   }
   
-  // Convertir en chaîne si ce n'est pas déjà le cas
-  const chatIdStr = String(newChatId)
-  
-  // Réinitialiser les messages lorsqu'on change de chat
-  messages.value = []
-  
-  // Charger l'historique des messages pour ce chat immédiatement
-  loadChatHistory(chatIdStr)
-}, { immediate: true })
-
-// Charger l'historique des messages
-async function loadChatHistory(chatId) {
-  try {
-    isLoading.value = true
-    
-    // Vérifier que l'utilisateur est connecté
-    if (!authState.isAuthenticated) {
-      throw new Error('Vous devez être connecté pour accéder aux messages')
-    }
-    
-    const userId = authState.pseudo
-    
-    console.log(`Chargement des messages pour le chat ${chatId} (type: ${typeof chatId})`)
-    
-    // Vérifier si des messages existent déjà dans le localStorage
-    const chatMessages = JSON.parse(localStorage.getItem(`chat_messages_${userId}_${chatId}`) || '[]')
-    console.log(`${chatMessages.length} messages trouvés dans le localStorage`)
-    
-    // Récupérer les informations du chat à partir de l'ID
-    const conversations = JSON.parse(localStorage.getItem(`conversations_${userId}`) || '[]')
-    console.log(`${conversations.length} conversations trouvées dans le localStorage:`, conversations)
-    
-    // Convertir l'ID en chaîne pour la comparaison
-    const chatIdStr = String(chatId)
-    const currentChat = conversations.find(chat => String(chat.id) === chatIdStr)
-    
-    if (!currentChat) {
-      console.warn(`Conversation ${chatId} non trouvée dans la liste des conversations`)
-      // Essayer de récupérer la conversation par backendId
-      const chatByBackendId = conversations.find(chat => String(chat.backendId) === chatIdStr)
-      if (chatByBackendId) {
-        console.log(`Conversation trouvée par backendId:`, chatByBackendId)
-        // Utiliser cet ID à la place
-        const chatMessagesByBackendId = JSON.parse(localStorage.getItem(`chat_messages_${userId}_${chatByBackendId.id}`) || '[]')
-        if (chatMessagesByBackendId.length > 0) {
-          console.log(`${chatMessagesByBackendId.length} messages trouvés avec backendId`)
-          messages.value = chatMessagesByBackendId
-          return
-        }
-      }
-    } else {
-      console.log(`Conversation trouvée:`, currentChat)
-    }
-    
-    if (chatMessages.length === 0) {
-      // Ajouter un message de bienvenue si c'est la première fois
-      const welcomeMessage = {
-        id: Date.now(),
-        text: "Bonjour ! Je suis InfoliA, votre assistant IA. Comment puis-je vous aider avec votre document aujourd'hui ?",
-        sender: 'bot',
-        timestamp: formatDate(new Date().toISOString())
-      }
-      
-      chatMessages.push(welcomeMessage)
-      localStorage.setItem(`chat_messages_${userId}_${chatId}`, JSON.stringify(chatMessages))
-      console.log('Message de bienvenue ajouté')
-    }
-    
-    messages.value = chatMessages
-    console.log('Messages chargés dans le composant:', messages.value)
-    
-    // Faire défiler vers le bas pour voir les messages
-    setTimeout(() => {
-      scrollToBottom()
-    }, 100)
-  } catch (error) {
-    console.error('Erreur lors du chargement des messages:', error)
-  } finally {
-    isLoading.value = false
-  }
-}
-
-// Envoyer un message
-async function sendMessage() {
-  if (newMessage.value.trim() === '' || !props.chatId) return
-  
-  // Vérifier que l'utilisateur est connecté
-  if (!authState.isAuthenticated) {
-    alert('Vous devez être connecté pour envoyer des messages')
-    return
-  }
-  
-  const userId = authState.pseudo
-  
-  // Ajouter le message de l'utilisateur
-  const userMessageText = newMessage.value
+  // Créer le message utilisateur
   const userMessage = {
-    id: Date.now(),
-    text: userMessageText,
-    sender: 'user',
-    timestamp: formatDate(new Date().toISOString())
+    role: 'user',
+    content: newMessage.value,
+    timestamp: new Date().toISOString(),
   }
   
-  messages.value.push(userMessage)
+  // Ajouter le message à la conversation
+  chatStore.addMessage(chatStore.selectedChatId, userMessage)
+  
+  // Réinitialiser la zone de saisie
   newMessage.value = ''
   
-  // Faire défiler vers le bas
+  // Faire défiler jusqu'au dernier message
+  await nextTick()
   scrollToBottom()
   
-  // Envoyer le message au backend
+  // Activer l'indicateur d'attente
+  isWaitingForResponse.value = true
+  
   try {
-    isLoading.value = true
+    // Appeler l'API pour obtenir une réponse
+    const apiUrl = `/chat/send_message/`
     
-    // Récupérer les informations du chat à partir de l'ID
-    const conversations = JSON.parse(localStorage.getItem(`conversations_${userId}`) || '[]')
+    // Log pour déboguer l'ID du chat
+    console.log('Envoi de message avec chat_id:', chatStore.selectedChatId, 'type:', typeof chatStore.selectedChatId)
     
-    // Convertir l'ID en chaîne pour la comparaison
-    const chatIdStr = String(props.chatId)
-    const currentChat = conversations.find(chat => String(chat.id) === chatIdStr)
-    
-    if (!currentChat) {
-      throw new Error(`Conversation ${props.chatId} non trouvée`)
-    }
-    
-    console.log('Conversation trouvée:', currentChat)
-    
-    // Utiliser le backendId directement s'il est disponible
-    // Sinon, utiliser le nom de la conversation
-    const chatName = currentChat.backendId || currentChat.name
-    
-    console.log('Envoi du message avec:', {
-      pseudo: userId,
-      chat_name: chatName,
-      question: userMessageText
-    })
-    
-    // Appel à l'API backend - format simplifié pour correspondre au backend fonctionnel
-    const response = await fetch('/chat/send_message/', {
+    const response = await fetch(apiUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+      },
       body: JSON.stringify({
-        pseudo: userId,
-        chat_name: chatName,
-        question: userMessageText
-      })
+        message: userMessage.content,
+        pseudo: authState.pseudo,
+        chat_id: chatStore.selectedChatId
+      }),
     })
     
     if (!response.ok) {
-      const errorText = await response.text()
-      console.error('Erreur de réponse:', errorText)
-      try {
-        const errorData = JSON.parse(errorText)
-        throw new Error(errorData.error || 'Erreur lors de l\'envoi du message')
-      } catch (e) {
-        throw new Error(`Erreur ${response.status}: ${errorText || response.statusText}`)
-      }
+      throw new Error(`Erreur API: ${response.status}`)
     }
     
-    let data
-    try {
-      const responseText = await response.text()
-      console.log('Réponse texte:', responseText)
-      data = JSON.parse(responseText)
-      console.log('Réponse du serveur (parsée):', data)
-    } catch (e) {
-      console.error('Erreur lors du parsing de la réponse:', e)
-      throw new Error('Erreur lors du traitement de la réponse du serveur')
+    const responseData = await response.json()
+    
+    // Ajouter la réponse à la conversation
+    const modelMessage = {
+      role: 'assistant',
+      content: responseData.response,
+      timestamp: new Date().toISOString(),
     }
     
-    // Adapter le traitement de la réponse au format du backend fonctionnel
-    const botMessage = {
-      id: Date.now() + 1,
-      text: data.response || (data.message ? data.message : "Pas de réponse du serveur"),
-      sender: 'bot',
-      timestamp: formatDate(new Date().toISOString()),
-      // Gestion des sources si elles existent
-      source: data.source ? (Array.isArray(data.source) ? data.source.join('\n\n') : data.source) : null
-    }
+    chatStore.addMessage(chatStore.selectedChatId, modelMessage)
     
-    messages.value.push(botMessage)
-    
-    // Sauvegarder les messages dans le localStorage avec l'ID de l'utilisateur
-    localStorage.setItem(`chat_messages_${userId}_${props.chatId}`, JSON.stringify(messages.value))
-    
-    // Faire défiler vers le bas
+    // Faire défiler jusqu'au dernier message
+    await nextTick()
     scrollToBottom()
   } catch (error) {
     console.error('Erreur lors de l\'envoi du message:', error)
     
     // Ajouter un message d'erreur
-    messages.value.push({
-      id: Date.now() + 1,
-      text: `Désolé, une erreur s'est produite: ${error.message}`,
-      sender: 'bot',
-      timestamp: formatDate(new Date().toISOString())
+    chatStore.addMessage(chatStore.selectedChatId, {
+      role: 'system',
+      content: `Erreur: Impossible de communiquer avec le modèle. ${error.message}`,
+      timestamp: new Date().toISOString(),
     })
-    
-    scrollToBottom()
   } finally {
-    isLoading.value = false
+    // Désactiver l'indicateur d'attente
+    isWaitingForResponse.value = false
+    
+    // Focus sur l'input
+    messageInput.value?.focus()
   }
 }
 
-// Ouvrir une nouvelle conversation
-function openNewConversation() {
-  // Émettre un événement pour informer le parent
-  emit('new-conversation')
+// Formatage du contenu avec Markdown
+const formatContent = (content) => {
+  if (!content) return ''
+  
+  try {
+    // Utiliser marked au lieu de showdown
+    const html = marked(content)
+    return DOMPurify.sanitize(html)
+  } catch (e) {
+    console.error('Error formatting message:', e)
+    return content
+  }
 }
 
-// Faire défiler vers le bas
-function scrollToBottom() {
-  // Utiliser un délai plus long pour s'assurer que le DOM est mis à jour
-  setTimeout(() => {
-    const chatContainer = document.querySelector('.chat-messages')
-    if (chatContainer) {
-      console.log('Défilement vers le bas, hauteur:', chatContainer.scrollHeight)
-      chatContainer.scrollTop = chatContainer.scrollHeight
-      
-      // Double vérification avec un second délai
-      setTimeout(() => {
-        chatContainer.scrollTop = chatContainer.scrollHeight
-      }, 100)
-    } else {
-      console.warn('Container de chat non trouvé pour le défilement')
-    }
-  }, 100)
+// Défilement automatique vers le bas
+const scrollToBottom = () => {
+  if (messageContainer.value) {
+    messageContainer.value.scrollTop = messageContainer.value.scrollHeight
+  }
 }
 
-// Formater une date
-function formatDate(dateString) {
-  const date = new Date(dateString)
-  return date.toLocaleDateString('fr-FR', {
+// Formatage de la date
+const formatDate = (timestamp) => {
+  const date = new Date(timestamp)
+  return date.toLocaleTimeString('fr-FR', {
     hour: '2-digit',
     minute: '2-digit'
   })
 }
+
+// Obtenir le libellé de l'expéditeur
+const getSenderLabel = (role) => {
+  switch (role) {
+    case 'user':
+      return authState.pseudo || 'Vous'
+    case 'assistant':
+      return 'Assistant'
+    case 'system':
+      return 'Système'
+    default:
+      return role
+  }
+}
+
+// Surveiller le changement de conversation sélectionnée
+watch(() => chatStore.selectedChatId, async (newChatId, oldChatId) => {
+  if (newChatId && newChatId !== oldChatId) {
+    // Réinitialiser l'interface
+    newMessage.value = ''
+    isWaitingForResponse.value = false
+    
+    // S'assurer que le focus est sur la zone de saisie
+    await nextTick()
+    messageInput.value?.focus()
+    scrollToBottom()
+  }
+})
+
+// Charger les messages lorsque le composant est monté
+onMounted(async () => {
+  // S'assurer que les messages du chat actuel sont chargés
+  if (chatStore.selectedChatId) {
+    chatStore.loadChatMessages(chatStore.selectedChatId)
+  }
+  
+  // Mettre le focus sur l'input de message
+  messageInput.value?.focus()
+  
+  // Défiler vers le bas
+  await nextTick()
+  scrollToBottom()
+})
+
+// Actions à effectuer lors du démontage du composant
+onBeforeUnmount(() => {
+  // Sauvegarder les messages dans le localStorage
+  if (chatStore.selectedChatId) {
+    chatStore.saveChatMessagesToStorage()
+  }
+})
 </script>
 
 <style scoped>
@@ -326,80 +282,259 @@ function formatDate(dateString) {
   display: flex;
   flex-direction: column;
   height: 100%;
+}
+
+.chat-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  border-bottom: 1px solid #f5f5f5;
   background-color: #fff;
-  transition: opacity 0.2s ease;
 }
 
-.chat-interface.updating {
-  opacity: 0.8;
+.chat-info {
+  display: flex;
+  flex-direction: column;
 }
 
-.chat-messages {
+.chat-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.chat-document {
+  font-size: 0.8rem;
+  color: #7a7a7a;
+  margin-top: 0.25rem;
+}
+
+.chat-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.message-container {
   flex: 1;
   overflow-y: auto;
   padding: 1rem;
   background-color: #f9f9f9;
 }
 
-.empty-chat {
+.loading-messages, .no-messages {
   display: flex;
-  justify-content: center;
+  flex-direction: column;
   align-items: center;
+  justify-content: center;
   height: 100%;
   color: #7a7a7a;
-  text-align: center;
-  flex-direction: column;
 }
 
-.message {
+.loading-spinner {
+  width: 40px;
+  height: 40px;
   margin-bottom: 1rem;
-  max-width: 80%;
+  border: 4px solid rgba(0, 0, 0, 0.1);
+  border-radius: 50%;
+  border-top-color: #3273dc;
+  animation: spin 1s ease-in-out infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.messages {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.message-item {
+  padding: 1rem;
+  border-radius: 8px;
+  max-width: 85%;
   position: relative;
 }
 
-.user-message {
-  margin-left: auto;
-  background-color: #3273dc;
-  color: white;
-  border-radius: 18px 18px 0 18px;
+.message-user {
+  align-self: flex-end;
+  background-color: #e3f2fd;
+  border: 1px solid #bbdefb;
 }
 
-.bot-message {
-  margin-right: auto;
-  background-color: #f5f5f5;
-  color: #4a4a4a;
-  border-radius: 18px 18px 18px 0;
+.message-assistant {
+  align-self: flex-start;
+  background-color: white;
+  border: 1px solid #e0e0e0;
+}
+
+.message-system {
+  align-self: center;
+  background-color: #fff3cd;
+  border: 1px solid #ffeeba;
+  max-width: 95%;
+}
+
+.message-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+  font-size: 0.8rem;
+}
+
+.message-sender {
+  font-weight: 600;
+}
+
+.message-time {
+  color: #7a7a7a;
 }
 
 .message-content {
-  padding: 0.75rem 1rem;
-}
-
-.message-content p {
-  margin: 0;
   white-space: pre-wrap;
+  word-break: break-word;
 }
 
-.message-source {
-  font-size: 0.75rem;
-  margin-top: 0.5rem;
-  opacity: 0.8;
+.message-content :deep(p) {
+  margin-bottom: 0.75rem;
 }
 
-.message-timestamp {
-  font-size: 0.7rem;
-  text-align: right;
-  margin-top: 0.25rem;
-  opacity: 0.7;
+.message-content :deep(p:last-child) {
+  margin-bottom: 0;
 }
 
-.user-message .message-timestamp {
-  color: #f5f5f5;
+.message-content :deep(pre) {
+  background-color: #f5f5f5;
+  padding: 0.75rem;
+  border-radius: 4px;
+  overflow-x: auto;
+  margin: 0.75rem 0;
 }
 
-.chat-input {
+.message-content :deep(code) {
+  background-color: #f5f5f5;
+  padding: 0.2rem 0.4rem;
+  border-radius: 4px;
+  font-family: monospace;
+}
+
+.message-content :deep(ul), .message-content :deep(ol) {
+  margin-left: 1.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.message-input-container {
   padding: 1rem;
   border-top: 1px solid #f5f5f5;
   background-color: #fff;
+}
+
+.thinking-indicator {
+  display: flex;
+  align-items: center;
+  margin-bottom: 0.5rem;
+  color: #7a7a7a;
+  font-size: 0.9rem;
+}
+
+.thinking-dots {
+  display: flex;
+  gap: 0.25rem;
+  margin-right: 0.5rem;
+}
+
+.thinking-dots span {
+  width: 8px;
+  height: 8px;
+  background-color: #3273dc;
+  border-radius: 50%;
+  display: inline-block;
+  animation: pulse 1.5s infinite ease-in-out;
+}
+
+.thinking-dots span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.thinking-dots span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(0.8);
+    opacity: 0.5;
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 1;
+  }
+}
+
+.input-wrapper {
+  display: flex;
+  position: relative;
+}
+
+.message-input {
+  flex: 1;
+  padding: 0.75rem 3rem 0.75rem 0.75rem;
+  border: 1px solid #dbdbdb;
+  border-radius: 4px;
+  font-size: 1rem;
+  resize: none;
+  min-height: 60px;
+  max-height: 200px;
+  overflow-y: auto;
+  line-height: 1.5;
+}
+
+.message-input:focus {
+  outline: none;
+  border-color: #3273dc;
+  box-shadow: 0 0 0 1px rgba(50, 115, 220, 0.25);
+}
+
+.message-input:disabled {
+  background-color: #f5f5f5;
+  cursor: not-allowed;
+}
+
+.send-button {
+  position: absolute;
+  right: 0.5rem;
+  bottom: 0.5rem;
+  background-color: #3273dc;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.send-button:hover {
+  background-color: #2366d1;
+}
+
+.send-button:disabled {
+  background-color: #dbdbdb;
+  cursor: not-allowed;
+}
+
+.is-thinking {
+  opacity: 0.7;
+  border-style: dashed;
+}
+
+.mr-1 {
+  margin-right: 0.25rem;
 }
 </style>
