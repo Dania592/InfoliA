@@ -88,6 +88,7 @@ export const useChatStore = defineStore('chat', () => {
       const storedSelectedChatId = localStorage.getItem(`selectedChatId_${userId}`)
       if (storedSelectedChatId) {
         selectedChatId.value = storedSelectedChatId
+        selectedChatId.value = "user_"+userId+"."+"chat_"+ localStorage.getItem('chat')
         // Charger les messages de ce chat
         loadChatMessages(storedSelectedChatId, userId)
       }

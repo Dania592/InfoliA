@@ -236,9 +236,10 @@ const createConversation = async () => {
         console.log("Réponse du serveur pour l'upload:", response.data)
         
         // Récupérer l'ID de chat si disponible
-        if (response.data && response.data.chat_id) {
-          chatId = response.data.chat_id
-        }
+
+        //if (response.data && response.data.chat_id) {
+         // chatId = response.data.chat_id
+        //}
       } catch (error) {
         console.error("Erreur lors de l'upload:", error)
         throw new Error("Erreur lors de l'upload du fichier: " + 
@@ -247,30 +248,32 @@ const createConversation = async () => {
     }
     
     // S'il n'y a pas d'ID de chat depuis l'upload, créer la conversation
-    if (!chatId) {
-      const createResponse = await fetch('/chat/create_chat/', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({
-          chat_name: conversationName.value,
-          pseudo: authState.pseudo,
-          pdf_name: selectedFile.value ? selectedFile.value.name : null
-        })
+
+    const createResponse = await fetch('/chat/create_chat/', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        chat_name: conversationName.value,
+        pseudo: authState.pseudo,
+        pdf_name: selectedFile.value ? selectedFile.value.name : null
       })
-      
-      if (!createResponse.ok) {
-        const errorText = await createResponse.text()
-        try {
-          const errorData = JSON.parse(errorText)
-          throw new Error(errorData.error || 'Erreur lors de la création de la conversation')
-        } catch (e) {
-          throw new Error(`Erreur ${createResponse.status}: ${errorText || createResponse.statusText}`)
-        }
+    })
+
+    if (!createResponse.ok) {
+      const errorText = await createResponse.text()
+      try {
+        const errorData = JSON.parse(errorText)
+        throw new Error(errorData.error || 'Erreur lors de la création de la conversation')
+      } catch (e) {
+        throw new Error(`Erreur ${createResponse.status}: ${errorText || createResponse.statusText}`)
       }
-      
-      const data = await createResponse.json()
-      chatId = data.chat_id || (data.vector_db ? data.vector_db.id_chat : null)
     }
+
+    const data = await createResponse.json()
+    console.log(data)
+    chatId = data.chat_id || (data.vector_db ? data.vector_db.id_chat : null)
+    console.log("################ le chat id dans createconversation ", chatId)
+
     
     if (!chatId) {
       throw new Error('Réponse invalide du serveur: ID de chat manquant')

@@ -109,7 +109,7 @@ const filteredConversations = computed(() => {
 
 // Méthodes
 const selectConversation = (conversation) => {
-  emit('select-conversation', conversation.id)
+  emit('select-conversation', conversation.backendId)
 }
 
 const formatDate = (dateString) => {

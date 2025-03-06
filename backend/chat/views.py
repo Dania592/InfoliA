@@ -41,9 +41,6 @@ class FileUploadView(APIView):
             logging.error(traceback.format_exc())
             return Response({"error": str(e)}, status=500)
 
-def chat(request):
-    return render(request, 'chat.html')
-
 @api_view(['POST'])
 def send_message(request):
     if request.method == 'POST':
@@ -133,7 +130,6 @@ def create_chat(request):
         data = json.loads(request.body)
         chat_name = data.get('chat_name')
         user_name = data.get('pseudo')
-        pdf_file = data.get('pdf_file')
 
         ## Récupérer le fichier PDF dans le dossier du chat
         chat_directory = get_chat_directory(user_name, chat_name)
