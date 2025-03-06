@@ -1,6 +1,20 @@
 <template>
   <div class="conversation-list">
-    <div v-if="chatStore.conversations.length === 0" class="no-conversations">
+    <div v-if="isLoading" class="loading-state">
+      <p>Chargement des conversations...</p>
+    </div>
+    
+    <div v-else-if="error" class="error-state">
+      <p>{{ error }}</p>
+      <button class="button is-primary mt-3" @click="fetchConversations">
+        <span class="icon">
+          <i class="fa-solid fa-redo"></i>
+        </span>
+        <span>Réessayer</span>
+      </button>
+    </div>
+    
+    <div v-else-if="conversations.length === 0" class="no-conversations">
       <p>Vous n'avez pas encore de conversations.</p>
       <button class="button is-primary mt-3" @click="$emit('new-conversation')">
         <span class="icon">
@@ -80,13 +94,26 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted, defineExpose, defineProps, onBeforeUnmount } from 'vue'
 import { useChatStore } from '../stores/chatStore'
 import { useRouter } from 'vue-router'
+import axios from 'axios'
 
 // Router
 const router = useRouter()
 const chatStore = useChatStore()
+
+// Props
+const props = defineProps({
+  refreshInterval: {
+    type: Number,
+    default: 10000
+  },
+  refreshTrigger: {
+    type: Number,
+    default: 0
+  }
+})
 
 // Emits
 const emit = defineEmits(['select-conversation', 'new-conversation', 'delete-conversation'])
@@ -95,13 +122,92 @@ const emit = defineEmits(['select-conversation', 'new-conversation', 'delete-con
 const searchQuery = ref('')
 const deleteModalActive = ref(false)
 const conversationToDelete = ref(null)
+const conversations = ref([])
+const isLoading = ref(false)
+const error = ref(null)
+const pollingInterval = ref(null)
+const lastConversationCount = ref(0)
+
+// Fonction pour récupérer les conversations depuis l'API
+const fetchConversations = async () => {
+  isLoading.value = true
+  error.value = null
+  
+  try {
+    const pseudo = localStorage.getItem('pseudo')
+    if (!pseudo) {
+      throw new Error('Utilisateur non connecté')
+    }
+    
+    const response = await axios.post('/chat/get_user_chats/', {
+      pseudo: pseudo
+    })
+    
+    const newConversations = response.data.chats.map(chat => ({
+      id: chat.id_chat,
+      backendId: chat.id_chat,
+      name: chat.nom_chat,
+      createdAt: new Date().toISOString(),
+      document: ''
+    }))
+    
+    // Détection de nouvelles conversations
+    if (conversations.value.length && newConversations.length > lastConversationCount.value) {
+      console.log('Nouvelles conversations détectées!')
+    }
+    
+    // Mise à jour du compteur
+    lastConversationCount.value = newConversations.length
+    conversations.value = newConversations
+  } catch (err) {
+    console.error('Erreur lors de la récupération des conversations:', err)
+    error.value = 'Impossible de récupérer les conversations'
+  } finally {
+    isLoading.value = false
+  }
+}
+
+// Démarrer le polling
+const startPolling = () => {
+  // Nettoyer tout intervalle existant
+  if (pollingInterval.value) {
+    clearInterval(pollingInterval.value)
+  }
+  
+  // Démarrer un nouvel intervalle
+  pollingInterval.value = setInterval(() => {
+    // Vérifier si l'utilisateur est toujours connecté
+    const pseudo = localStorage.getItem('pseudo')
+    if (pseudo) {
+      fetchConversations()
+    } else {
+      // Si déconnecté, arrêter le polling
+      stopPolling()
+    }
+  }, props.refreshInterval)
+}
+
+// Arrêter le polling
+const stopPolling = () => {
+  if (pollingInterval.value) {
+    clearInterval(pollingInterval.value)
+    pollingInterval.value = null
+  }
+}
+
+// Exposer la méthode fetchConversations pour permettre son appel depuis le parent
+defineExpose({
+  fetchConversations,
+  startPolling,
+  stopPolling
+})
 
 // Computed properties
 const filteredConversations = computed(() => {
-  if (!searchQuery.value) return chatStore.conversations
+  if (!searchQuery.value) return conversations.value
   
   const query = searchQuery.value.toLowerCase()
-  return chatStore.conversations.filter(conv => 
+  return conversations.value.filter(conv => 
     conv.name.toLowerCase().includes(query) || 
     (conv.document && conv.document.toLowerCase().includes(query))
   )
@@ -122,10 +228,10 @@ const formatDate = (dateString) => {
 }
 
 const truncateFilename = (filename) => {
-  if (filename.length > 20) {
+  if (filename && filename.length > 20) {
     return filename.substring(0, 17) + '...'
   }
-  return filename
+  return filename || ''
 }
 
 const confirmDeleteConversation = (conversationId) => {
@@ -144,10 +250,33 @@ const deleteConversation = () => {
   // Émettre un événement pour informer le parent
   emit('delete-conversation', conversationToDelete.value)
   
+  // Supprimer localement de la liste
+  conversations.value = conversations.value.filter(
+    conv => conv.id !== conversationToDelete.value
+  )
+  
   // Fermer le modal
   deleteModalActive.value = false
   conversationToDelete.value = null
 }
+
+// Observer les changements de la prop refreshTrigger pour rafraîchir manuellement
+watch(() => props.refreshTrigger, () => {
+  if (props.refreshTrigger > 0) {
+    fetchConversations()
+  }
+})
+
+// Initialisation au montage du composant
+onMounted(() => {
+  fetchConversations()
+  startPolling()
+})
+
+// Nettoyage à la destruction du composant
+onBeforeUnmount(() => {
+  stopPolling()
+})
 
 // Surveiller les changements de route
 watch(() => router.currentRoute.value.path, (path) => {

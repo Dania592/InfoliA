@@ -12,6 +12,7 @@ const chatStore = useChatStore()
 const isNewConversationModalActive = ref(false)
 const errorMessage = ref('')
 const successMessage = ref('')
+const conversationListRef = ref(null)
 
 // Rediriger vers la page de connexion si l'utilisateur n'est pas connecté
 if (!authState.isAuthenticated) {
@@ -71,6 +72,11 @@ const handleConversationCreated = (conversation) => {
   chatStore.addConversation(conversation)
   chatStore.selectChat(conversation.id)
   
+  // Actualiser la liste des conversations directement depuis la BD
+  if (conversationListRef.value) {
+    setTimeout(() => conversationListRef.value.fetchConversations(), 300)
+  }
+  
   // Afficher un message de succès
   successMessage.value = `Conversation "${conversation.name}" créée avec succès!`
   setTimeout(() => {
@@ -105,6 +111,7 @@ watch(() => authState.isAuthenticated, (isAuthenticated) => {
     <!-- Sidebar pour la liste des conversations -->
     <div class="conversation-sidebar" v-if="!chatStore.selectedChatId">
       <ConversationList 
+        ref="conversationListRef"
         @select-conversation="selectConversation"
         @new-conversation="openNewConversationModal"
         @delete-conversation="handleDeleteConversation"

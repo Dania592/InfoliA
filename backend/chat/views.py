@@ -190,3 +190,28 @@ def load_chat(request):
 
     except Exception as e:
         return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['POST'])
+def get_user_chats(request):
+    try:
+        data = json.loads(request.body)
+        user_name = data.get('pseudo')
+        
+        # Vérifier que l'utilisateur existe
+        user = get_object_or_404(User, pseudo=user_name)
+        
+        # Récupérer tous les chats de l'utilisateur
+        chats = Chat.objects.filter(id_user=user)
+        
+        # Sérialiser les données
+        serializer = ChatSerializer(chats, many=True)
+        
+        return Response({
+            "chats": serializer.data
+        }, status=status.HTTP_200_OK)
+        
+    except User.DoesNotExist:
+        return Response({"error": "Utilisateur non trouvé"}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        logging.error(f"Erreur lors de la récupération des chats: {str(e)}")
+        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
