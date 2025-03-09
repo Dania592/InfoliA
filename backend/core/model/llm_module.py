@@ -31,14 +31,20 @@ class LlmModule:
 
         results = self.rag.search_faiss(question, faiss_path)
         context = ""
+        sources = ""
         for result in results:
             context += result.page_content + "\n"
+            sources += "Source : " + result.metadata['source'] + ", page : " + str(result.metadata['page']) + "\n"
 
         prompt = f"Réponds à la question en utilisant ces informations :\n\n{context}\n\nQuestion: {question}\nRéponse:"
-        # prompt = build_prompt(context, question)
 
         responses = self.model(prompt, max_length=200, do_sample=True, temperature=0.7)
+        result = ""
+        for response in responses:
+            result += response['generated_text']
 
-        return responses
+
+        result += "\n\n" + sources
+        return result
 
 

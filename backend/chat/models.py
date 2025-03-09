@@ -2,11 +2,6 @@ from django.db import models
 from api.models import User  # Importer le modèle User depuis l'application api
 
 def get_vectordb_upload_path(instance, filename):
-    """
-    Génère dynamiquement le chemin de stockage des fichiers
-    media/user_<id>/chat_<id>/filename
-    TODO : adapter selon l'enregistrement de Ilyes
-    """
     return f"user_{instance.id_chat.id_user.pseudo}/chat_{instance.id_chat.id_chat}/{filename}"
 
 class Chat(models.Model):

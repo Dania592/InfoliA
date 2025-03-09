@@ -1,4 +1,5 @@
-from django.shortcuts import render
+from datetime import datetime
+
 from core.model.rag_module import RagModule
 from core.model.llm_module import LlmModule
 from rest_framework.decorators import api_view
@@ -6,7 +7,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from django.shortcuts import get_object_or_404
 from api.models import User
-from .models import Chat
+from .models import Chat, Message
 from .serializers import ChatSerializer
 from django.conf import settings
 import os
@@ -88,7 +89,15 @@ def send_message(request):
             
             # Générer une réponse
             result = llm.generate_response(question, faiss_path=faiss_path)
-            
+
+            message = Message.objects.create(
+                id_chat=chat,
+                question=question,
+                reponse=result,
+                date= datetime.now(),
+                source="source"
+            )
+
             # Vérifier le format de la réponse et la traiter en conséquence
             logging.info(f"Type de résultat LLM: {type(result)}")
             
@@ -99,7 +108,7 @@ def send_message(request):
             elif isinstance(result, list) and len(result) > 0 and isinstance(result[0], dict):
                 # Format standard des pipelines Hugging Face
                 response_text = result[0].get('generated_text', 'Pas de texte généré')
-                logging.info(f"Réponse LLM (dict): {response_text[:100]}...")
+                logging.info(f"Réponse LLM (list): {response_text[:100]}...")
             else:
                 # Autre format, tenter de convertir en string
                 response_text = str(result)
