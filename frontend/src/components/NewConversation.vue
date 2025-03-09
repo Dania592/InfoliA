@@ -108,6 +108,7 @@ const isLoading = ref(false)
 const statusMessage = ref('')
 const statusClass = ref('is-info')
 const nameInput = ref(null)
+const MAX_FILENAME_LENGTH = 50
 
 // Computed properties
 const isValid = computed(() => {
@@ -176,6 +177,12 @@ const handleFileUpload = (event) => {
     // Vérifier la taille du fichier (max 10MB)
     if (file.size > 10 * 1024 * 1024) {
       fileError.value = 'Le fichier est trop volumineux (max 10MB)'
+      selectedFile.value = null
+      return
+    }
+
+    if (file.name.length > MAX_FILENAME_LENGTH) {
+      fileError.value = `Le nom du fichier est trop long (max ${MAX_FILENAME_LENGTH} caractères).`
       selectedFile.value = null
       return
     }

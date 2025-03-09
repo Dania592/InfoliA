@@ -56,7 +56,6 @@ def send_message(request):
             
             # Liste tous les chats disponibles
             all_chats = Chat.objects.all()
-            logging.info(f"Chats disponibles: {[(c.id_chat, c.nom_chat) for c in all_chats]}")
             
             # Stratégie fallback: si on ne trouve pas le chat par ID, on prend le premier chat disponible
             try:
@@ -76,17 +75,7 @@ def send_message(request):
             # Déterminer le chemin du dossier FAISS
             # 1. Utiliser d'abord le chemin du chat actuel
             faiss_path = get_chat_directory(user_name, chat_name)
-            logging.info(f"Utilisation du chemin FAISS (depuis chat): {faiss_path}")
-            
-            # 2. Si ce chemin n'existe pas, essayer avec le dossier chat_test explicitement
-            if not os.path.exists(faiss_path):
-                alt_path = os.path.join(settings.MEDIA_ROOT, f"user_{user_name}", "chat_test")
-                logging.info(f"Chemin FAISS non trouvé, essai avec chemin alternatif: {alt_path}")
-                
-                if os.path.exists(alt_path):
-                    faiss_path = alt_path
-                    logging.info(f"Utilisation du chemin FAISS alternatif: {faiss_path}")
-            
+
             # Générer une réponse
             result = llm.generate_response(question, faiss_path=faiss_path)
 
@@ -97,22 +86,14 @@ def send_message(request):
                 date= datetime.now(),
                 source="source"
             )
-
-            # Vérifier le format de la réponse et la traiter en conséquence
-            logging.info(f"Type de résultat LLM: {type(result)}")
             
             if isinstance(result, str):
-                # Si le résultat est déjà une chaîne de caractères
                 response_text = result
-                logging.info(f"Réponse LLM (string): {response_text[:100]}...")
-            elif isinstance(result, list) and len(result) > 0 and isinstance(result[0], dict):
-                # Format standard des pipelines Hugging Face
-                response_text = result[0].get('generated_text', 'Pas de texte généré')
-                logging.info(f"Réponse LLM (list): {response_text[:100]}...")
             else:
                 # Autre format, tenter de convertir en string
                 response_text = str(result)
-                logging.info(f"Réponse LLM (autre format): {response_text[:100]}...")
+
+            logging.info(f"Réponse LLM : {response_text[:100]}...")
             
             # Retourner la réponse
             return Response({
@@ -130,7 +111,6 @@ def send_message(request):
     return Response({"error": "Méthode non autorisée"}, status=status.HTTP_400_BAD_REQUEST)
 
 def get_chat_directory(user_id, chat_name):
-    print("==============> path",os.path.join(settings.MEDIA_ROOT, f"user_{user_id}", f"chat_{chat_name}"))
     return os.path.join(settings.MEDIA_ROOT, f"user_{user_id}", f"chat_{chat_name}")
 
 @api_view(['POST'])
