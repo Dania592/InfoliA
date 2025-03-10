@@ -77,16 +77,17 @@ def send_message(request):
             faiss_path = get_chat_directory(user_name, chat_name)
 
             # Générer une réponse
-            result = llm.generate_response(question, faiss_path=faiss_path)
+            re, sources = llm.generate_response(question, faiss_path=faiss_path)
 
             message = Message.objects.create(
                 id_chat=chat,
                 question=question,
-                reponse=result,
+                reponse=re,
                 date= datetime.now(),
-                source="source"
+                source=sources
             )
-            
+            result = re + "\n\n" + sources
+
             if isinstance(result, str):
                 response_text = result
             else:
@@ -179,6 +180,32 @@ def load_chat(request):
 
     except Exception as e:
         return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['POST'])
+def add_file(request):
+    try:
+        data = json.loads(request.body)
+        chat_name = data.get('chat_name')
+        user_name = data.get('user_name')
+
+        user = get_object_or_404(User, pseudo=user_name)
+        id_chat = f"user_{user.pseudo}.chat_{chat_name}"
+        chat = get_object_or_404(Chat, id_chat=id_chat)
+
+        chat_download_dir = get_chat_directory(user.pseudo, chat_name)
+        print(chat_download_dir)
+        os.makedirs(chat_download_dir, exist_ok=True)
+
+        pdf_path = os.path.join(chat_download_dir, data.get('pdf_name'))
+
+        ## Ajout dans la base FAISS
+        rag.add_pdf(pdf_path, chat_download_dir)
+
+        ## todo / enregistrer dans la base
+
+    except Exception as e:
+        return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
 
 @api_view(['POST'])
 def get_user_chats(request):

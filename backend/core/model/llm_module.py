@@ -43,8 +43,6 @@ class LlmModule:
         for response in responses:
             result += response['generated_text']
 
-
-        result += "\n\n" + sources
-        return result
+        return result, sources
 
 

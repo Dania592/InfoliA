@@ -21,7 +21,6 @@ const message = ref('')
 /* Ajout d'un peu d'espace pour la navbar fixe */
 .main-content {
   margin-top: 4rem;
-  padding: 1.5rem;
 }
 
 /* Styles spécifiques pour les icônes FontAwesome */

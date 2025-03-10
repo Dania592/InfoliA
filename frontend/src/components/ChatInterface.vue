@@ -9,17 +9,6 @@
           {{ chatStore.currentChat.document }}
         </span>
       </div>
-      <div class="chat-actions">
-        <button 
-          class="button is-primary is-small"
-          @click="$emit('new-conversation')"
-        >
-          <span class="icon">
-            ←
-          </span>
-          <span>Revenir aux conversations</span>
-        </button>
-      </div>
     </div>
 
     <!-- Zone des messages -->
@@ -361,14 +350,14 @@ onBeforeUnmount(() => {
 
 .message-user {
   align-self: flex-end;
-  background-color: #181818;
+  background-color: #e7e7e7;
   border: 1px solid #11cfb3;
 }
 
 .message-assistant {
   align-self: flex-start;
   background-color: #11cfb3;
-  border: 1px solid #EEC584 ;
+  border: 1px solid #e7e7e7;
   color: #181818;
 }
 

@@ -108,20 +108,29 @@ watch(() => authState.isAuthenticated, (isAuthenticated) => {
       <button class="delete" @click="successMessage = ''"></button>
     </div>
     
-    <!-- Sidebar pour la liste des conversations -->
-    <div class="conversation-sidebar" v-if="!chatStore.selectedChatId">
-      <ConversationList 
-        ref="conversationListRef"
-        @select-conversation="selectConversation"
-        @new-conversation="openNewConversationModal"
-        @delete-conversation="handleDeleteConversation"
-      />
-    </div>
-    
-    <!-- Interface de chat -->
-    <div class="chat-content" v-else-if="chatStore.selectedChatId">
-      <div class="chat-interface-wrapper">
-        <ChatInterface @new-conversation="deselectConversation" />
+    <!-- Layout avec sidebar et chat -->
+    <div class="chat-layout">
+      <!-- Sidebar pour la liste des conversations (toujours visible) -->
+      <div class="conversation-sidebar">
+        <ConversationList 
+          ref="conversationListRef"
+          @select-conversation="selectConversation"
+          @new-conversation="openNewConversationModal"
+          @delete-conversation="handleDeleteConversation"
+        />
+      </div>
+      
+      <!-- Interface de chat -->
+      <div class="chat-content">
+        <div v-if="!chatStore.selectedChatId" class="no-chat-selected">
+          <div class="welcome-message">
+            <h2>Bienvenue dans InfoliA</h2>
+            <p>Sélectionnez une conversation ou créez-en une nouvelle pour commencer.</p>
+          </div>
+        </div>
+        <div v-else class="chat-interface-wrapper">
+          <ChatInterface @new-conversation="deselectConversation" />
+        </div>
       </div>
     </div>
     
@@ -139,7 +148,15 @@ watch(() => authState.isAuthenticated, (isAuthenticated) => {
 .chat-page {
   height: calc(100vh - 7rem);
   display: flex;
+  flex-direction: column;
   position: relative;
+}
+
+.chat-layout {
+  display: flex;
+  flex: 1;
+  height: 100%;
+  overflow: hidden;
 }
 
 .global-notification {
@@ -160,7 +177,7 @@ watch(() => authState.isAuthenticated, (isAuthenticated) => {
   border-right: 1px solid #10372f;
   height: 100%;
   overflow-y: auto;
-  border-left: 1px solid #10372f;
+  flex-shrink: 0;
 }
 
 .chat-content {
@@ -168,6 +185,26 @@ watch(() => authState.isAuthenticated, (isAuthenticated) => {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+}
+
+.no-chat-selected {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 2rem;
+  background-color: rgba(16, 55, 47, 0.05);
+}
+
+.welcome-message {
+  text-align: center;
+  max-width: 600px;
+}
+
+.welcome-message h2 {
+  font-size: 1.8rem;
+  margin-bottom: 1rem;
+  color: #10372f;
 }
 
 .chat-interface-wrapper {
@@ -179,9 +216,8 @@ watch(() => authState.isAuthenticated, (isAuthenticated) => {
 }
 
 @media screen and (max-width: 768px) {
-  .chat-page {
+  .chat-layout {
     flex-direction: column;
-    height: calc(100vh - 6rem);
   }
   
   .conversation-sidebar {
@@ -189,7 +225,7 @@ watch(() => authState.isAuthenticated, (isAuthenticated) => {
     height: auto;
     max-height: 40vh;
     border-right: none;
-    border-bottom: 1px solid #333;
+    border-bottom: 1px solid #10372f;
   }
   
   .chat-content {

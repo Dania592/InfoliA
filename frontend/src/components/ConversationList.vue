@@ -293,8 +293,8 @@ watch(() => router.currentRoute.value.path, (path) => {
   height: 100%;
   display: flex;
   flex-direction: column;
-  background-color: #181818;
-  color: #fff;
+  background-color: #ffffff;
+  color: #000;
 }
 
 .no-conversations {
@@ -319,7 +319,7 @@ watch(() => router.currentRoute.value.path, (path) => {
   padding: 0.75rem;
   border-radius: 4px;
   margin-bottom: 0.5rem;
-  border: 1px solid #181818;
+  border: 1px solid #ffffff;
   transition: all 0.2s ease;
 }
 
@@ -329,7 +329,7 @@ watch(() => router.currentRoute.value.path, (path) => {
 
 .conversation-item.is-active {
   border-color: #11cfb3;
-  background-color: rgba(17, 207, 179, 0.1);
+  background-color: rgba(17, 207, 179, 0.25);
 }
 
 .conversation-item-content {
@@ -347,7 +347,7 @@ watch(() => router.currentRoute.value.path, (path) => {
 .conversation-name {
   font-weight: 600;
   margin-bottom: 0.25rem;
-  color: #fff;
+  color: #000;
 }
 
 .conversation-date {
