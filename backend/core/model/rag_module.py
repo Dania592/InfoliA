@@ -37,13 +37,11 @@ class RagModule:
         chunks = self.text_splitter.split_documents(documents)
         vectorstore = FAISS.from_documents(chunks, self.embedding)
         vectorstore.save_local(vectorstor_path)
-        print("Nouvelle base FAISS créée: ", vectorstor_path, ", contenu : ", len(documents), " documents. ")
 
 
     def add_pdf(self, path_to_pdf, vectorstor_path):
 
         if not os.path.exists(vectorstor_path):
-            print("Aucune base FAISS existante, création d'une nouvelle ")
             self.create_faiss_db([path_to_pdf], vectorstor_path)
         else:
             existing_db = FAISS.load_local(vectorstor_path, self.embedding, allow_dangerous_deserialization=True)
@@ -51,11 +49,10 @@ class RagModule:
             new_chunks = self.text_splitter.split_documents(new_doc)
             existing_db.add_documents(new_chunks)
             existing_db.save_local(vectorstor_path)
-            print("Mise à jour de la base ", vectorstor_path, " avec : ", path_to_pdf)
 
     def search_faiss(self, question, vectorstor_path,  nb_answers= 2 ):
         if not os.path.exists(vectorstor_path):
-            print("Aucune base FAISS trouvé !!")
+
             return
         else:
             vector_db = FAISS.load_local(vectorstor_path, self.embedding, allow_dangerous_deserialization=True)

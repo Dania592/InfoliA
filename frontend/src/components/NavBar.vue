@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, watch, ref } from 'vue'
+import { watch, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import authState, { logout as logoutAction } from '../stores/auth'
 
@@ -8,7 +8,7 @@ const isActive = ref(false)
 
 const logout = () => {
   logoutAction()
-  router.push('/') // Redirige vers l'accueil
+  router.push('/')
 }
 
 const toggleMenu = () => {
@@ -34,7 +34,9 @@ watch(() => router.currentRoute.value.path, () => {
           </router-link>
         </template>
         <template v-else>
-          <router-link to="/" class="navbar-item">Accueil</router-link>
+          <router-link to="/" class="navbar-item"><span class="icon">
+              🏠
+            </span></router-link>
         </template>
         
         <router-link to="/about" class="navbar-item">A propos</router-link>

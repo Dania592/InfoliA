@@ -1,21 +1,25 @@
 from datetime import datetime
-
-from core.model.rag_module import RagModule
-from core.model.llm_module import LlmModule
-from rest_framework.decorators import api_view
-from rest_framework.response import Response
-from rest_framework import status
-from django.shortcuts import get_object_or_404
-from api.models import User
-from .models import Chat, Message
-from .serializers import ChatSerializer
-from django.conf import settings
 import os
 import logging
 import json
+
+from core.model.rag_module import RagModule
+from core.model.llm_module import LlmModule
+
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.parsers import MultiPartParser, FormParser
-from .serializers import UploadedFileSerializer
+from rest_framework import status
+
+from django.conf import settings
+from django.shortcuts import get_object_or_404
+
+from api.models import User
+from .models import Chat, Message
+from .serializers import ChatSerializer, UploadedFileSerializer
+
+
 rag = RagModule()
 llm = LlmModule()
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -26,7 +30,6 @@ class FileUploadView(APIView):
     def post(self, request, *args, **kwargs):
         try:
             logging.info(f"Début de l'upload de fichier: {request.data}")
-            
             file_serializer = UploadedFileSerializer(data=request.data)
             if file_serializer.is_valid():
                 logging.info(f"Données valides, sauvegarde du fichier")
@@ -36,10 +39,9 @@ class FileUploadView(APIView):
             else:
                 logging.error(f"Erreurs de validation: {file_serializer.errors}")
                 return Response(file_serializer.errors, status=400)
+
         except Exception as e:
             logging.error(f"Erreur lors de l'upload: {str(e)}")
-            import traceback
-            logging.error(traceback.format_exc())
             return Response({"error": str(e)}, status=500)
 
 @api_view(['POST'])
@@ -50,43 +52,28 @@ def send_message(request):
             chat_id = data.get('chat_id')
             user_name = data.get('pseudo')
             question = data.get('message')
-            
-            # Logs de debugging
-            logging.info(f"Recherche de chat avec id_chat={chat_id}, type={type(chat_id).__name__}")
-            
-            # Liste tous les chats disponibles
-            all_chats = Chat.objects.all()
-            
-            # Stratégie fallback: si on ne trouve pas le chat par ID, on prend le premier chat disponible
             try:
-                # Essayer d'abord avec l'ID exact
                 chat = Chat.objects.get(id_chat=chat_id)
+
             except Chat.DoesNotExist:
-                if len(all_chats) > 0:
-                    # Fallback: utiliser le premier chat disponible
-                    logging.warning(f"Chat {chat_id} non trouvé. Utilisation du chat {all_chats[0].id_chat} comme fallback.")
-                    chat = all_chats[0]
-                else:
-                    raise Chat.DoesNotExist("Aucun chat disponible")
-            
+                raise Chat.DoesNotExist("Chat inexistent dans le profil utilisateur")
+
             chat_name = chat.nom_chat
             logging.info(f"Chat trouvé/utilisé - ID: {chat.id_chat}, Nom: {chat_name}")
-            
-            # Déterminer le chemin du dossier FAISS
-            # 1. Utiliser d'abord le chemin du chat actuel
             faiss_path = get_chat_directory(user_name, chat_name)
 
             # Générer une réponse
-            re, sources = llm.generate_response(question, faiss_path=faiss_path)
+            response, sources = llm.generate_response(question, faiss_path=faiss_path)
 
             message = Message.objects.create(
                 id_chat=chat,
                 question=question,
-                reponse=re,
+                reponse=response,
                 date= datetime.now(),
                 source=sources
             )
-            result = re + "\n\n" + sources
+
+            result = response + "\n\n" + sources
 
             if isinstance(result, str):
                 response_text = result
@@ -94,9 +81,8 @@ def send_message(request):
                 # Autre format, tenter de convertir en string
                 response_text = str(result)
 
-            logging.info(f"Réponse LLM : {response_text[:100]}...")
-            
-            # Retourner la réponse
+            logging.info(f"Réponse LLM : {response_text[:50]}...")
+
             return Response({
                 "message": "Message envoyé avec succès",
                 "response": response_text
@@ -135,7 +121,6 @@ def create_chat(request):
         id_chat = f"user_{user.pseudo}.chat_{chat_name}"
         os.makedirs(chat_directory, exist_ok=True)
         pdf_path = os.path.join(chat_directory, data.get('pdf_name'))
-
         faiss_path = os.path.join(chat_directory, "index.faiss")
         pkl_path = os.path.join(chat_directory, "index.pkl")
 
@@ -158,54 +143,6 @@ def create_chat(request):
 
     except Exception as e:
         return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-
-
-@api_view(['POST'])
-def load_chat(request):
-    try:
-        data = json.loads(request.body)
-        chat_name = data.get('chat_name')
-        user_name = data.get('pseudo')
-
-        user = get_object_or_404(User, pseudo=user_name)
-        id_chat = f"user_{user.pseudo}.chat_{chat_name}"
-        chat = get_object_or_404(Chat, id_chat=id_chat)
-
-
-        chat_download_dir = get_chat_directory(user.pseudo, chat_name)
-        print(chat_download_dir)
-        os.makedirs(chat_download_dir, exist_ok=True)
-
-        file_paths = {}
-
-    except Exception as e:
-        return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-
-@api_view(['POST'])
-def add_file(request):
-    try:
-        data = json.loads(request.body)
-        chat_name = data.get('chat_name')
-        user_name = data.get('user_name')
-
-        user = get_object_or_404(User, pseudo=user_name)
-        id_chat = f"user_{user.pseudo}.chat_{chat_name}"
-        chat = get_object_or_404(Chat, id_chat=id_chat)
-
-        chat_download_dir = get_chat_directory(user.pseudo, chat_name)
-        print(chat_download_dir)
-        os.makedirs(chat_download_dir, exist_ok=True)
-
-        pdf_path = os.path.join(chat_download_dir, data.get('pdf_name'))
-
-        ## Ajout dans la base FAISS
-        rag.add_pdf(pdf_path, chat_download_dir)
-
-        ## todo / enregistrer dans la base
-
-    except Exception as e:
-        return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-
 
 @api_view(['POST'])
 def get_user_chats(request):

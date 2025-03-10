@@ -22,13 +22,4 @@ const message = ref('')
 .main-content {
   margin-top: 4rem;
 }
-
-/* Styles spécifiques pour les icônes FontAwesome */
-.fa, .fas, .far, .fab, .fa-solid, .fa-regular, .fa-brands {
-  display: inline-block;
-  font-style: normal;
-  font-variant: normal;
-  text-rendering: auto;
-  line-height: 1;
-}
 </style>

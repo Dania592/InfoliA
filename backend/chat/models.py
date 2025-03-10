@@ -1,5 +1,9 @@
 from django.db import models
-from api.models import User  # Importer le modèle User depuis l'application api
+from api.models import User
+from django.conf import settings
+
+import os
+
 
 def get_vectordb_upload_path(instance, filename):
     return f"user_{instance.id_chat.id_user.pseudo}/chat_{instance.id_chat.id_chat}/{filename}"
@@ -7,12 +11,12 @@ def get_vectordb_upload_path(instance, filename):
 class Chat(models.Model):
     nom_chat = models.CharField(max_length=50)
     id_chat = models.CharField(primary_key=True, max_length=100)
-    id_user = models.ForeignKey(User, on_delete=models.CASCADE)  # Référence directe au modèle importé
+    id_user = models.ForeignKey(User, on_delete=models.CASCADE)
     index_faiss = models.FileField(upload_to=get_vectordb_upload_path)
     index_pkl = models.FileField(upload_to=get_vectordb_upload_path)
 
     def __str__(self):
-        return self.nom_chat  # Utiliser nom_chat au lieu de pseudo
+        return self.nom_chat
 
 
 class Message(models.Model):
@@ -25,17 +29,15 @@ class Message(models.Model):
     source = models.CharField(max_length=50)
 
     def __str__(self):
-        return f"{self.id_chat}:{self.id_message}"  # Ajouter une méthode __str__ pour Message
+        return f"{self.id_chat}:{self.id_message}"
 
 from django.db import models
 
 def get_file_upload_path(instance, filename):
     """Génère un chemin valide pour l'upload de fichiers"""
-    # Nettoyer le nom du chat pour éviter les caractères problématiques
+
     safe_chat_name = "".join(c if c.isalnum() or c in "-_" else "_" for c in instance.chat_name)
-    # Assurer que les répertoires existent
-    import os
-    from django.conf import settings
+
     directory = os.path.join(settings.MEDIA_ROOT, f"user_{instance.user_name}", f"chat_{safe_chat_name}")
     os.makedirs(directory, exist_ok=True)
     

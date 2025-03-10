@@ -37,7 +37,7 @@ class LlmModule:
             sources += "Source : " + result.metadata['source'] + ", page : " + str(result.metadata['page']) + "\n"
 
         prompt = f"Réponds à la question en utilisant ces informations :\n\n{context}\n\nQuestion: {question}\nRéponse:"
-
+        prompt = self.build_prompt(context, prompt)
         responses = self.model(prompt, max_length=200, do_sample=True, temperature=0.7)
         result = ""
         for response in responses:

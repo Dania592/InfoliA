@@ -1,9 +1,6 @@
-from django.http import JsonResponse
 from rest_framework.response import Response
 from rest_framework import status
-from django.contrib.auth.hashers import check_password
 from rest_framework.decorators import api_view
-from .models import User
 from .serializers import UserSerializer, LoginSerializer
 
 @api_view(['POST'])
