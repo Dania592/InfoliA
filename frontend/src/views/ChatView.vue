@@ -156,6 +156,7 @@ watch(() => authState.isAuthenticated, (isAuthenticated) => {
   display: flex;
   flex: 1;
   height: 100%;
+  width : 100%;
   overflow: hidden;
 }
 
@@ -174,7 +175,8 @@ watch(() => authState.isAuthenticated, (isAuthenticated) => {
 
 .conversation-sidebar {
   width: 300px;
-  border-right: 1px solid #10372f;
+  border-right: 1px solid #9999;
+  border-left: 1px solid #9999;
   height: 100%;
   overflow-y: auto;
   flex-shrink: 0;
@@ -193,7 +195,7 @@ watch(() => authState.isAuthenticated, (isAuthenticated) => {
   justify-content: center;
   height: 100%;
   padding: 2rem;
-  background-color: rgba(16, 55, 47, 0.05);
+  background-color:#fff ;
 }
 
 .welcome-message {

@@ -439,7 +439,7 @@ onBeforeUnmount(() => {
 .thinking-dots span {
   width: 8px;
   height: 8px;
-  background-color: #3273dc;
+  background-color: #0fb9a0;
   border-radius: 50%;
   display: inline-block;
   animation: pulse 1.5s infinite ease-in-out;
